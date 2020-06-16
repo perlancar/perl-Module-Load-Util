@@ -1,3 +1,10 @@
+0.003   2020-06-16  Released-By: PERLANCAR; Urgency: low
+
+	- No functional changes.
+
+	- Use regexp from Regexp::Pattern::Perl::Module.
+
+
 0.002   2020-06-16  Released-By: PERLANCAR; Urgency: medium
 
 	- [ux] Support 2-element array form for module/class name in addition
