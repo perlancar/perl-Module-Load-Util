@@ -6,6 +6,7 @@ package Module::Load::Util;
 # VERSION
 
 use strict 'subs', 'vars';
+use Regexp::Pattern::Perl::Module ();
 
 use Exporter 'import';
 our @EXPORT_OK = qw(
@@ -22,7 +23,7 @@ sub load_module_with_optional_args {
         defined $opts->{caller} ? $opts->{caller} :
         caller(0);
     # check because we will use eval ""
-    $target_package =~ /\A[A-Za-z_][A-Za-z0-9_]*(::[A-Za-z0-9_]*)*\z/
+    $target_package =~ $Regexp::Pattern::Perl::Module::RE{perl_modname}{pat}
         or die "Invalid syntax in target package '$target_package'";
 
     my ($module, $args) = @_;
@@ -210,3 +211,5 @@ Str. Like in L</load_module_with_optional_args>.
 L<Module::Load>
 
 L<Class::Load>
+
+L<Sah::Schema::perl::modname_with_optional_args>
