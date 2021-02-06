@@ -46,15 +46,31 @@ sub load_module_with_optional_args {
         $args = [];
     }
 
-    if (defined $opts->{ns_prefix}) {
-        $module =
-            $opts->{ns_prefix} . ($opts->{ns_prefix} =~ /::\z/ ? '':'::') .
-            $module;
-    }
+    my @ns_prefixes = $opts->{ns_prefixes} ? @{$opts->{ns_prefixes}} :
+        defined($opts->{ns_prefix}) ? ($opts->{ns_prefix}) : ('');
+    my $try_all = $opts->{ns_prefixes} ? 1:0;
+    my $module_with_prefix;
+    for my $i (0 .. $#ns_prefixes) {
+        my $ns_prefix = $ns_prefixes[$i];
+        if (length $ns_prefix) {
+            $module_with_prefix =
+                $ns_prefix . ($ns_prefix =~ /::\z/ ? '':'::') . $module;
+        } else {
+            $module_with_prefix = $module;
+        }
 
-    # XXX option load=0?
-    (my $modulepm = "$module.pm") =~ s!::!/!g;
-    require $modulepm;
+        # XXX option load=0?
+        (my $module_with_prefix_pm = "$module_with_prefix.pm") =~ s!::!/!g;
+        if ($try_all) {
+            eval { require $module_with_prefix_pm }; last unless $@;
+        } else {
+            require $module_with_prefix_pm;
+        }
+    }
+    if ($@) {
+        die "load_module_with_optional_args(): Failed to load module '$module' (all prefixes tried: ".join(", ", @ns_prefixes).")";
+    }
+    $module = $module_with_prefix;
 
     my $do_import = defined $opts->{import} ? $opts->{import} : 1;
     if ($do_import) {
@@ -153,6 +169,11 @@ Str. Namespace to use. For example, if you set this to C<WordList> then with
 C<$module_with_optional_args> set to C<ID::KBBI>, the module
 L<WordList::ID::KBBI> will be loaded.
 
+=item * ns_prefixes
+
+Array of str. Like L</ns_prefix> but will attempt all prefixes and will fail if
+all prefixes fail.
+
 =item * target_package
 
 Str. Target package to import() to. Default is caller(0).
@@ -202,6 +223,10 @@ Str. Select constructor name. Defaults to C<new>.
 =item * ns_prefix
 
 Str. Like in L</load_module_with_optional_args>.
+
+=item * ns_prefixes
+
+Array of str. Like in L</load_module_with_optional_args>.
 
 =back
 
