@@ -28,10 +28,10 @@ sub load_module_with_optional_args {
 
     my ($module, $args) = @_;
     if (ref $module_with_optional_args eq 'ARRAY') {
-        die "array form or module/class name must have 2 elements"
-            unless @$module_with_optional_args == 2;
+        die "array form or module/class name must have 1 or 2 elements"
+            unless @$module_with_optional_args == 1 || @$module_with_optional_args == 2;
         $module = $module_with_optional_args->[0];
-        $args = $module_with_optional_args->[1];
+        $args = $module_with_optional_args->[1] || [];
         $args = [%$args] if ref $args eq 'HASH';
         die "In array form of module/class name, the 2nd element must be ".
             "arrayref or hashref" unless ref $args eq 'ARRAY';
