@@ -1,12 +1,12 @@
 package Module::Load::Util;
 
+use strict 'subs', 'vars';
+use Regexp::Pattern::Perl::Module ();
+
 # AUTHORITY
 # DATE
 # DIST
 # VERSION
-
-use strict 'subs', 'vars';
-use Regexp::Pattern::Perl::Module ();
 
 use Exporter 'import';
 our @EXPORT_OK = qw(
@@ -74,7 +74,7 @@ sub load_module_with_optional_args {
 
     my $do_import = defined $opts->{import} ? $opts->{import} : 1;
     if ($do_import) {
-        eval "package $target_package; $module->import(\@{\$args});";
+        eval "package $target_package; $module->import(\@{\$args});"; ## no critic: BuiltinFunctions::ProhibitStringyEval
         die if $@;
     }
 
