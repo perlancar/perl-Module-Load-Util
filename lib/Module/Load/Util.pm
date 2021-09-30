@@ -107,8 +107,28 @@ sub instantiate_class_with_optional_args {
 
 =head1 SYNOPSIS
 
+ use Module::Load::Util qw(
+     load_module_with_optional_args
+     instantiate_class_with_optional_args
+ );
+
+ load_module_with_optional_args("Foo::Bar=import-arg1,import-arg2");
+ load_module_with_optional_args(["Foo::Bar", ["import-arg1", "import-arg2"]]);
+
+ my $obj = instantiate_class_with_optional_args("Some::Class=opt1,val1,opt2,val2");
+ my $obj = instantiate_class_with_optional_args(["Some::Class", {opt1=>"val1",opt2=>"val2"}]);
+
+See more examples in each function's documentation in the L</FUNCTIONS> section.
+
 
 =head1 DESCRIPTION
+
+This module provides some utility routines related to module loading. Currently
+what it offers now are the two functions L</load_module_with_optional_args> and
+L</instantiate_class_with_optional_args>. These functions are designed for use
+with command-line and/or plugin-based applications. You can specify
+module/class/plugin to load in a flexible format, as a string or 2-element
+array. Please see the function's documentation for more details.
 
 
 =head1 FUNCTIONS
