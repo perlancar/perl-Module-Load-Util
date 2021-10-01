@@ -1,12 +1,12 @@
 package Module::Load::Util;
 
+use strict 'subs', 'vars';
+use Regexp::Pattern::Perl::Module ();
+
 # AUTHORITY
 # DATE
 # DIST
 # VERSION
-
-use strict 'subs', 'vars';
-use Regexp::Pattern::Perl::Module ();
 
 use Exporter 'import';
 our @EXPORT_OK = qw(
@@ -28,10 +28,10 @@ sub load_module_with_optional_args {
 
     my ($module, $args) = @_;
     if (ref $module_with_optional_args eq 'ARRAY') {
-        die "array form or module/class name must have 2 elements"
-            unless @$module_with_optional_args == 2;
+        die "array form or module/class name must have 1 or 2 elements"
+            unless @$module_with_optional_args == 1 || @$module_with_optional_args == 2;
         $module = $module_with_optional_args->[0];
-        $args = $module_with_optional_args->[1];
+        $args = $module_with_optional_args->[1] || [];
         $args = [%$args] if ref $args eq 'HASH';
         die "In array form of module/class name, the 2nd element must be ".
             "arrayref or hashref" unless ref $args eq 'ARRAY';
@@ -74,7 +74,7 @@ sub load_module_with_optional_args {
 
     my $do_import = defined $opts->{import} ? $opts->{import} : 1;
     if ($do_import) {
-        eval "package $target_package; $module->import(\@{\$args});";
+        eval "package $target_package; $module->import(\@{\$args});"; ## no critic: BuiltinFunctions::ProhibitStringyEval
         die if $@;
     }
 
@@ -107,8 +107,32 @@ sub instantiate_class_with_optional_args {
 
 =head1 SYNOPSIS
 
+ use Module::Load::Util qw(
+     load_module_with_optional_args
+     instantiate_class_with_optional_args
+ );
+
+ load_module_with_optional_args("Foo::Bar=import-arg1,import-arg2");
+ load_module_with_optional_args(["Foo::Bar", ["import-arg1", "import-arg2"]]);
+
+ my $obj = instantiate_class_with_optional_args("Some::Class=opt1,val1,opt2,val2");
+ my $obj = instantiate_class_with_optional_args(["Some::Class", {opt1=>"val1",opt2=>"val2"}]);
+
+See more examples in each function's documentation in the L</FUNCTIONS> section.
+
 
 =head1 DESCRIPTION
+
+This module provides some utility routines related to module loading. Currently
+what it offers now are the two functions L</load_module_with_optional_args> and
+L</instantiate_class_with_optional_args>. These functions are designed for use
+with command-line and/or plugin-based applications, because you can specify
+module/class/plugin to load in a flexible format, as a string or 2-element
+array. See L<wordlist> (from L<App::wordlist>), L<tabledata> (from
+L<App::tabledata>), or L<ColorTheme> for some of the applications that use this
+module.
+
+Please see the functions' documentation for more details.
 
 
 =head1 FUNCTIONS
