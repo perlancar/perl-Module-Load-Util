@@ -63,6 +63,7 @@ sub load_module_with_optional_args {
         (my $module_with_prefix_pm = "$module_with_prefix.pm") =~ s!::!/!g;
         if ($try_all) {
             eval { require $module_with_prefix_pm }; last unless $@;
+            warn $@ if $@ !~ /\ACan't locate/;
         } else {
             require $module_with_prefix_pm;
         }
