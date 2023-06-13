@@ -59,13 +59,14 @@ sub load_module_with_optional_args {
             $module_with_prefix = $module;
         }
 
-        # XXX option load=0?
-        (my $module_with_prefix_pm = "$module_with_prefix.pm") =~ s!::!/!g;
-        if ($try_all) {
-            eval { require $module_with_prefix_pm }; last unless $@;
-            warn $@ if $@ !~ /\ACan't locate/;
-        } else {
-            require $module_with_prefix_pm;
+        if ($opts->{load} // 1) {
+            (my $module_with_prefix_pm = "$module_with_prefix.pm") =~ s!::!/!g;
+            if ($try_all) {
+                eval { require $module_with_prefix_pm }; last unless $@;
+                warn $@ if $@ !~ /\ACan't locate/;
+            } else {
+                require $module_with_prefix_pm;
+            }
         }
     }
     if ($@) {
@@ -252,6 +253,11 @@ Str. Like in L</load_module_with_optional_args>.
 =item * ns_prefixes
 
 Array of str. Like in L</load_module_with_optional_args>.
+
+=item * load
+
+Boolean. Default true. Whether to C<require> the class module. Sometimes you do
+not want to C<require()>, e.g. when the class is already defined somewhere else.
 
 =back
 
