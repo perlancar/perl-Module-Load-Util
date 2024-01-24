@@ -12,21 +12,14 @@ use Exporter 'import';
 our @EXPORT_OK = qw(
                        load_module_with_optional_args
                        instantiate_class_with_optional_args
+                       call_module_function_with_optional_args
+                       call_module_method_with_optional_args
                );
 
-sub load_module_with_optional_args {
-    my $opts = ref($_[0]) eq 'HASH' ? shift : {};
+sub _normalize_module_with_optional_args {
     my $module_with_optional_args = shift;
 
-    my $target_package =
-        defined $opts->{target_package} ? $opts->{target_package} :
-        defined $opts->{caller} ? $opts->{caller} :
-        caller(0);
-    # check because we will use eval ""
-    $target_package =~ $Regexp::Pattern::Perl::Module::RE{perl_modname}{pat}
-        or die "Invalid syntax in target package '$target_package'";
-
-    my ($module, $args) = @_;
+    my ($module, $args);
     if (ref $module_with_optional_args eq 'ARRAY') {
         die "array form or module/class name must have 1 or 2 elements"
             unless @$module_with_optional_args == 1 || @$module_with_optional_args == 2;
@@ -38,13 +31,22 @@ sub load_module_with_optional_args {
     } elsif (ref $module_with_optional_args) {
         die "module/class name must be string or 2-element array, not ".
             $module_with_optional_args;
-    } elsif ($module_with_optional_args =~ /(.+?)=(.*)/) {
+    } elsif ($module_with_optional_args =~ /(.+?)[=,](.*)/) {
         $module = $1;
         $args = [split /,/, $2];
     } else {
         $module = $module_with_optional_args;
         $args = [];
     }
+    ($module, $args);
+}
+
+sub _load_module {
+    my $opts = ref $_[0] eq 'HASH' ? shift : {};
+    my $module = shift;
+
+    my $do_load = defined $opts->{load} ? $opts->{load} : 1;
+    return $module unless $do_load;
 
     my @ns_prefixes = $opts->{ns_prefixes} ? @{$opts->{ns_prefixes}} :
         defined($opts->{ns_prefix}) ? ($opts->{ns_prefix}) : ('');
@@ -59,20 +61,35 @@ sub load_module_with_optional_args {
             $module_with_prefix = $module;
         }
 
-        if ($opts->{load} // 1) {
-            (my $module_with_prefix_pm = "$module_with_prefix.pm") =~ s!::!/!g;
-            if ($try_all) {
-                eval { require $module_with_prefix_pm }; last unless $@;
-                warn $@ if $@ !~ /\ACan't locate/;
-            } else {
-                require $module_with_prefix_pm;
-            }
+        (my $module_with_prefix_pm = "$module_with_prefix.pm") =~ s!::!/!g;
+        if ($try_all) {
+            eval { require $module_with_prefix_pm }; last unless $@;
+            warn $@ if $@ !~ /\ACan't locate/;
+        } else {
+            require $module_with_prefix_pm;
         }
     }
     if ($@) {
         die "load_module_with_optional_args(): Failed to load module '$module' (all prefixes tried: ".join(", ", @ns_prefixes).")";
     }
-    $module = $module_with_prefix;
+    $module_with_prefix;
+}
+
+sub load_module_with_optional_args {
+    my $opts = ref($_[0]) eq 'HASH' ? shift : {};
+    my $module_with_optional_args = shift;
+
+    my $target_package =
+        defined $opts->{target_package} ? $opts->{target_package} :
+        defined $opts->{caller} ? $opts->{caller} :
+        caller(0);
+    # check because we will use eval ""
+    $target_package =~ $Regexp::Pattern::Perl::Module::RE{perl_modname}{pat}
+        or die "Invalid syntax in target package '$target_package'";
+
+    my ($module, $args) = _normalize_module_with_optional_args(
+        $module_with_optional_args);
+    $module = _load_module($opts, $module);
 
     my $do_import = defined $opts->{import} ? $opts->{import} : 1;
     if ($do_import) {
@@ -104,6 +121,34 @@ sub instantiate_class_with_optional_args {
     }
 }
 
+sub call_module_function_with_optional_args {
+    my $opts = ref($_[0]) eq 'HASH' ? shift : {};
+    my $module_with_optional_args = shift;
+
+    my ($module, $args) = _normalize_module_with_optional_args(
+        $module_with_optional_args);
+    $module =~ s/\A(.+)::(\w+)\z/$1/ or die "Please specify MODULE::FUNCTION, not just module name '$module'";
+    my $func = $2;
+
+    _load_module($opts, $module);
+
+    &{"$module\::$func"}(@$args);
+}
+
+sub call_module_method_with_optional_args {
+    my $opts = ref($_[0]) eq 'HASH' ? shift : {};
+    my $module_with_optional_args = shift;
+
+    my ($module, $args) = _normalize_module_with_optional_args(
+        $module_with_optional_args);
+    $module =~ s/\A(.+)::(\w+)\z/$1/ or die "Please specify MODULE::FUNCTION, not just module name '$module'";
+    my $func = $2;
+
+    _load_module($opts, $module);
+
+    $module->$func(@$args);
+}
+
 1;
 # ABSTRACT: Some utility routines related to module loading
 
@@ -112,6 +157,8 @@ sub instantiate_class_with_optional_args {
  use Module::Load::Util qw(
      load_module_with_optional_args
      instantiate_class_with_optional_args
+     call_module_function_with_optional_args
+     call_module_method_with_optional_args
  );
 
  load_module_with_optional_args("Foo::Bar=import-arg1,import-arg2");
@@ -260,6 +307,41 @@ Boolean. Default true. Whether to C<require> the class module. Sometimes you do
 not want to C<require()>, e.g. when the class is already defined somewhere else.
 
 =back
+
+=head2 call_module_function_with_optional_args
+
+Usage:
+
+ call_module_function_with_optional_args( [ \%opts , ] $function_with_optional_args );
+
+Examples:
+
+ call_module_function_with_optional_args("App::ChromeUtils::chrome_is_running");
+ call_module_function_with_optional_args("App::ChromeUtils::start_chrome=quiet,1");
+ call_module_function_with_optional_args("Color::RGB::Util::int2rgb=100500");
+ call_module_function_with_optional_args(["App::ChromeUtils::start_chrome" => {quiet=>1}]);
+ call_module_function_with_optional_args(["Color::RGB::Util::int2rgb" => [100500]]);
+
+ call_module_function_with_optional_args({load=>0}, ["Color::RGB::Util::int2rgb" => [100500]]);
+
+Load module then call module's function with optional arguments.
+
+Known options:
+
+=over
+
+=item * load
+
+=item * ns_prefix
+
+=item * ns_prefixes
+
+=back
+
+=head2 call_module_method_with_optional_args
+
+Just like L</call_module_function_with_optional_args> except the subroutine call
+is replaced with a method call instead.
 
 
 =head1 SEE ALSO
